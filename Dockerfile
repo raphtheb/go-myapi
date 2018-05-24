@@ -1,11 +1,19 @@
 # Simple Dockerfile using multi-stage to limit filesize.
 
-FROM golang:1.10
+FROM golang:1.10-alpine as builder
+
+RUN apk add --no-cache git
 WORKDIR /go/src/app
 COPY . .
-RUN CGO_ENABLED=0 go build main.go
+RUN go get -d -v  ./...
+RUN go install -v ./...
+RUN go build
+RUN apk del git
 
 FROM alpine:3.7
-RUN apk add --no-cache ca-certificates git
-COPY --from=0 /go/src/bitbucket.code.company-name.com.au/scm/code/main .
-CMD ["./main"]
+RUN apk add --no-cache ca-certificates
+WORKDIR /go/src/app
+COPY --from=builder /go/src/app .
+CMD ["./app"]
+# Be aware that running EPXOSE and -P bins the exposed container ports to ephemeral local ports.
+EXPOSE 8080
